@@ -1,11 +1,12 @@
 import jwt from "jsonwebtoken";
 import { AppError } from "../utils/errors.js";
+import { Request, Response, NextFunction } from "express";
 
 /**
  * Verifies the JWT from the Authorization header (or httpOnly cookie, if used)
  * and attaches the decoded payload to req.user.
  */
-export function authenticate(req, res, next) {
+export function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith("Bearer ")
@@ -16,7 +17,7 @@ export function authenticate(req, res, next) {
       throw new AppError(401, "No token provided");
     }
 
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = jwt.verify(token, process.env.JWT_SECRET) as any;
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
@@ -33,8 +34,8 @@ export function authenticate(req, res, next) {
  * Restricts access to users whose role is in the allowed list.
  * Must run after authenticate.
  */
-export function authorize(...allowedRoles) {
-  return (req, res, next) => {
+export function authorize(...allowedRoles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError(401, "Not authenticated"));
     }

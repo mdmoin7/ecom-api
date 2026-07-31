@@ -1,9 +1,13 @@
+import UserService from "../services/user.service.js";
+import { Request, Response, NextFunction } from "express";
+
 class UserController {
-  constructor(service) {
+  userService: UserService;
+  constructor(service: UserService) {
     this.userService = service;
   }
 
-  async register(req, res, next) {
+  async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password, confirmPassword } = req.body;
       const user = await this.userService.signUp(
@@ -21,7 +25,7 @@ class UserController {
     }
   }
 
-  async login(req, res, next) {
+  async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
       const token = await this.userService.signIn(email, password);

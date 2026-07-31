@@ -1,5 +1,7 @@
 // controller/product.controller.js
+import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/errors.js";
+import ProductService from "../services/product.service.js";
 
 /**
  * Controller layer responsible for handling incoming HTTP requests,
@@ -12,7 +14,7 @@ class ProductController {
    * Injects ProductService dependency.
    * @param {Object} service - Instance of ProductService.
    */
-  constructor(service) {
+  constructor(service: ProductService) {
     this.productService = service;
   }
 
@@ -20,7 +22,7 @@ class ProductController {
    * Handles request to create a new product.
    * Responds with 201 Created on success, or delegates failure to the error handler.
    */
-  async createProduct(req, res, next) {
+  async createProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const product = await this.productService.createProduct(req.body);
       return res.status(201).json({
@@ -38,7 +40,7 @@ class ProductController {
    * Responds with 200 OK. An empty collection is still a valid, successful
    * result — it returns 200 with an empty array, not 204.
    */
-  async getAllProducts(req, res, next) {
+  async getAllProducts(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await this.productService.findAllProducts(req.query);
       return res.status(200).json({
@@ -57,7 +59,7 @@ class ProductController {
    * Handles request to retrieve a single product by its custom string ID.
    * Responds with 200 OK on success, or 404 Not Found if the product doesn't exist.
    */
-  async getProductById(req, res, next) {
+  async getProductById(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id;
       const data = await this.productService.findProduct(id);
@@ -78,7 +80,7 @@ class ProductController {
    * Handles request to delete a product by its custom ID.
    * Responds with 200 OK on successful deletion, or 404 Not Found if it doesn't exist.
    */
-  async deleteProduct(req, res, next) {
+  async deleteProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id;
       const data = await this.productService.deleteProduct(id);
@@ -99,7 +101,7 @@ class ProductController {
    * Handles request to update product properties by custom ID.
    * Responds with 200 OK on success, or 404 Not Found if the product doesn't exist.
    */
-  async updateProduct(req, res, next) {
+  async updateProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id;
       const data = await this.productService.updateProduct(id, req.body);
@@ -121,7 +123,7 @@ class ProductController {
    * Responds with 200 OK on success, 400 for missing input, or 404 if the
    * product record could not be found.
    */
-  async uploadProductImage(req, res, next) {
+  async uploadProductImage(req: Request, res: Response, next: NextFunction) {
     try {
       const file = req.file;
       const id = req.body.id;
@@ -153,7 +155,7 @@ class ProductController {
    * Delegates errors to the central error handler rather than leaking
    * raw error objects to the client.
    */
-  async seedProducts(req, res, next) {
+  async seedProducts(req: Request, res: Response, next: NextFunction) {
     try {
       const message = await this.productService.seedProducts(req.query.count);
       return res.status(200).json({

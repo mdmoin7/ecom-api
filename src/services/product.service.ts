@@ -27,8 +27,8 @@ const SORTABLE_FIELDS = new Set([
  * @param {Object} query - Raw req.query object.
  * @returns {Object} MongoDB filter.
  */
-function buildFilter(query = {}) {
-  const filter = {};
+function buildFilter(query: any = {}) {
+  const filter: any = {};
 
   if (query.category) {
     filter.productCategory = query.category;
@@ -165,7 +165,7 @@ class ProductService {
    *   inStock, minPrice, maxPrice, tags, search, sort).
    * @returns {Promise<Array>} List of matching product documents.
    */
-  findAllProducts(query = {}) {
+  findAllProducts(query: any = {}) {
     const filter = buildFilter(query);
     const sort = buildSort(query.sort);
     return this.productRepository.findAll(filter, sort);

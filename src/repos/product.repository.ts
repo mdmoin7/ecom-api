@@ -1,4 +1,4 @@
-import Product from "../models/product.model.js";
+import Product, { IProduct } from "../models/product.model.js";
 
 /**
  * Data Access Layer (Repository) for executing MongoDB operations on the Product collection.
@@ -9,7 +9,7 @@ class ProductRepository {
    * @param {Object} data - Product details matching schema format.
    * @returns {Promise<Object>} Created product document.
    */
-  create(data) {
+  create(data: Partial<IProduct>): Promise<IProduct> {
     return new Product(data).save();
   }
 
@@ -19,7 +19,7 @@ class ProductRepository {
    * @param {string} id - The custom productId.
    * @returns {Promise<Object|null>} Matching product document or null.
    */
-  findById(id) {
+  findById(id: string): Promise<IProduct | null> {
     return Product.findOne({ productId: id }).select({
       _id: 0,
       __v: 0,
@@ -35,7 +35,7 @@ class ProductRepository {
    * @param {string} [sort="-createdAt"] - Mongoose sort string, e.g. "-productPrice".
    * @returns {Promise<Array>} List of product documents.
    */
-  findAll(filter = {}, sort = "-createdAt") {
+  findAll(filter = {}, sort = "-createdAt"): Promise<IProduct[]> {
     return Product.find(filter)
       .select({
         _id: 0,
@@ -54,7 +54,7 @@ class ProductRepository {
    * @param {Object} data - Product update properties.
    * @returns {Promise<Object|null>} Updated product document or null.
    */
-  update(id, data) {
+  update(id: string, data: Partial<IProduct>): Promise<IProduct | null> {
     return Product.findOneAndUpdate({ productId: id }, data, {
       new: true,
       runValidators: true,
@@ -66,7 +66,7 @@ class ProductRepository {
    * @param {string} id - The custom productId.
    * @returns {Promise<Object|null>} Deleted product document or null.
    */
-  delete(id) {
+  delete(id: string): Promise<IProduct | null> {
     return Product.findOneAndDelete({ productId: id });
   }
 
@@ -75,7 +75,7 @@ class ProductRepository {
    * @param {Array} data - Array of mock product objects to seed.
    * @returns {Promise<Array>} Inserted product documents list.
    */
-  async insertMany(data) {
+  async insertMany(data: Partial<IProduct>[]): Promise<IProduct[]> {
     // Delete all current documents in collection
     await Product.deleteMany({});
     try {
