@@ -8,3 +8,5 @@ declare global {
     }
   }
 }
+
+export {}; // <-- add this line if it's missing

@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { AppError } from "../utils/errors.js";
 import { Request, Response, NextFunction } from "express";
 
@@ -16,8 +16,13 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     if (!token) {
       throw new AppError(401, "No token provided");
     }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = jwt.verify(token, process.env.JWT_SECRET) as any;
+    if (typeof decoded === "string") {
+      throw new AppError(401, "Invalid token payload");
+    }
+
+    req.user = decoded as JwtPayload & { role?: string; userId?: string };
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
