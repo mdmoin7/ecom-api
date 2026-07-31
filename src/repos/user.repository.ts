@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 
 class UserRepository {
-  create(data) {
+  create(data: any) {
     return User.create(data);
   }
   findById(id: string) {
@@ -10,7 +10,7 @@ class UserRepository {
   findByEmail(email: string) {
     return User.findOne({ email: email });
   }
-  update(id: string, data) {
+  update(id: string, data: any) {
     return User.findOneAndUpdate({ userId: id }, data, {
       new: true,
       runValidators: true,
