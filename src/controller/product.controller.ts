@@ -40,9 +40,11 @@ class ProductController {
    * Responds with 200 OK. An empty collection is still a valid, successful
    * result — it returns 200 with an empty array, not 204.
    */
-  async getAllProducts(req: Request, res: Response, next: NextFunction) {
+  async getAllProducts(req, res, next) {
     try {
-      const data = await this.productService.findAllProducts(req.query);
+      const { data, pagination } = await this.productService.findAllProducts(
+        req.query,
+      );
       return res.status(200).json({
         success: true,
         message:
@@ -50,6 +52,7 @@ class ProductController {
             ? "Products fetched successfully"
             : "No products found",
         data,
+        pagination,
       });
     } catch (err) {
       next(err);

@@ -151,6 +151,14 @@ Router.post("/seed", (req, res, next) =>
  *         schema: { type: string }
  *         description: Full-text search on productName and productDescription
  *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *         description: Page number (1-indexed)
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *         description: Results per page (server-clamped to 100)
+ *       - in: query
  *         name: sort
  *         schema: { type: string, default: "-createdAt" }
  *         description: >
@@ -172,6 +180,13 @@ Router.post("/seed", (req, res, next) =>
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page: { type: integer }
+ *                     limit: { type: integer }
+ *                     total: { type: integer }
+ *                     totalPages: { type: integer }
  */
 Router.get("/", (req, res, next) => controller.getAllProducts(req, res, next));
 

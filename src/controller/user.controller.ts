@@ -9,11 +9,12 @@ class UserController {
 
   async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { email, password, confirmPassword } = req.body;
+      const { email, password, confirmPassword, role } = req.body;
       const user = await this.userService.signUp(
         email,
         password,
         confirmPassword,
+        role,
       );
       return res.status(201).json({
         success: true,

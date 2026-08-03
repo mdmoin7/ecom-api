@@ -8,7 +8,8 @@ import { AppError } from "../utils/errors.js";
 
 const MAX_SEED_COUNT = 5000;
 const DEFAULT_SEED_COUNT = 500;
-
+const DEFAULT_PAGE_LIMIT = 20;
+const MAX_PAGE_LIMIT = 100;
 // Fields a client is allowed to sort by. Prevents sorting on arbitrary/
 // unindexed or internal fields via an unvalidated query string.
 const SORTABLE_FIELDS = new Set([
@@ -76,6 +77,27 @@ function buildSort(sortParam) {
     .filter((s) => SORTABLE_FIELDS.has(s.replace(/^-/, "")));
 
   return parts.length > 0 ? parts.join(" ") : "-createdAt";
+}
+
+/**
+ * Parses and clamps page/limit query params into safe integers.
+ * Invalid or missing values fall back to defaults; limit is capped to
+ * prevent a client requesting an unbounded page size.
+ * @param {Object} query - Raw req.query object.
+ * @returns {{ page: number, limit: number, skip: number }}
+ */
+function buildPagination(query: any = {}) {
+  const parsedPage = Number(query.page);
+  const parsedLimit = Number(query.limit);
+
+  const page =
+    Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
+  const limit =
+    Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(Math.floor(parsedLimit), MAX_PAGE_LIMIT)
+      : DEFAULT_PAGE_LIMIT;
+
+  return { page, limit, skip: (page - 1) * limit };
 }
 
 /**
@@ -160,15 +182,30 @@ class ProductService {
   }
 
   /**
-   * Retrieves product records, optionally filtered and sorted.
+   * Retrieves product records, optionally filtered, sorted, and paginated.
    * @param {Object} [query={}] - Raw req.query object (category, status,
-   *   inStock, minPrice, maxPrice, tags, search, sort).
-   * @returns {Promise<Array>} List of matching product documents.
+   *   inStock, minPrice, maxPrice, tags, search, sort, page, limit).
+   * @returns {Promise<{ data: Array, pagination: Object }>}
    */
-  findAllProducts(query: any = {}) {
+  async findAllProducts(query: any = {}) {
     const filter = buildFilter(query);
     const sort = buildSort(query.sort);
-    return this.productRepository.findAll(filter, sort);
+    const { page, limit, skip } = buildPagination(query);
+
+    const [data, total] = await Promise.all([
+      this.productRepository.findAll(filter, sort, skip, limit),
+      this.productRepository.count(filter),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 0,
+      },
+    };
   }
 
   /**

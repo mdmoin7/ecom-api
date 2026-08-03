@@ -11,7 +11,12 @@ class UserService {
     this.userRepository = repository;
   }
 
-  async signUp(email: string, password: string, confirmPassword: string) {
+  async signUp(
+    email: string,
+    password: string,
+    confirmPassword: string,
+    role: "user" | "admin" = "user",
+  ) {
     const data = await SignupValidator.validateAsync({
       email,
       password,
@@ -20,6 +25,7 @@ class UserService {
 
     data.userId = UUID();
     data.password = await this.hashPassword(data.password);
+    data.role = role;
     delete data["confirmPassword"];
 
     try {

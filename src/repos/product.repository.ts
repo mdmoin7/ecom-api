@@ -91,6 +91,16 @@ class ProductRepository {
       throw err;
     }
   }
+
+  /**
+   * Counts documents matching an optional filter — used alongside findAll
+   * to compute total/totalPages for pagination.
+   * @param {Object} [filter={}] - MongoDB filter built by the service layer.
+   * @returns {Promise<number>} Matching document count.
+   */
+  count(filter = {}) {
+    return Product.countDocuments(filter);
+  }
 }
 
 export default ProductRepository;
