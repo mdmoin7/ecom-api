@@ -12,6 +12,7 @@ provides JWT-protected product administration routes.
 - [Configuration](#configuration)
 - [Running the API](#running-the-api)
 - [API documentation](#api-documentation)
+- [Health checks](#health-checks)
 - [Authentication](#authentication)
 - [Product endpoints](#product-endpoints)
 - [User endpoints](#user-endpoints)
@@ -41,7 +42,8 @@ npm install
 - Swagger UI and a raw OpenAPI document.
 - Bounded in-process caching for public product reads.
 - Winston request and error logging to files and the console.
-- Multer-based image uploads, Helmet headers, CORS, and global rate limiting.
+- XSS body sanitization, Multer-based image uploads, Helmet headers, CORS, and
+  global rate limiting.
 
 ## Architecture and structure
 
@@ -128,6 +130,20 @@ http://localhost:3000/api-docs.json
 Swagger is configured with `/api/v1` as its server base, so using **Execute**
 in the UI calls the same API paths listed below. Protected operations require a
 JWT entered through Swagger UI's **Authorize** button.
+
+## Health checks
+
+These endpoints are not versioned or authenticated, making them suitable for
+load balancers, container orchestrators, and uptime monitors:
+
+| Method | Path | Purpose | Response |
+| --- | --- | --- | --- |
+| `GET` | `/health` | Liveness: confirms the API process is running. | `200 OK` |
+| `GET` | `/ready` | Readiness: confirms MongoDB is connected. | `200 OK` or `503 Service Unavailable` |
+
+`/health` returns process uptime and a timestamp. `/ready` returns `503` with
+`status: "not_ready"` while MongoDB is disconnected, so deployment platforms
+can keep an unhealthy instance out of traffic.
 
 ## Authentication
 
@@ -281,12 +297,15 @@ ignored by Git. Morgan's development request stream is also currently enabled.
 - Helmet sets security-related HTTP headers.
 - CORS is enabled with the default middleware configuration.
 - A global rate limit permits 100 requests per IP every 15 minutes.
+- Parsed JSON and form bodies are recursively HTML-escaped before validation
+  and persistence to reduce stored XSS risk. Password and confirmation fields
+  are intentionally left unchanged.
 - Joi validation failures return `400` responses.
 - Authentication failures return `401`; authenticated users without the admin
   role receive `403`.
 - Missing products return `404`.
 - Unexpected errors are logged and returned as a generic `500` response.
 
-The API currently does not register a custom XSS-cleaning or MongoDB-query
-sanitization middleware. Treat this as an implementation consideration when
-deploying the service publicly.
+The API does not currently register MongoDB-query sanitization middleware.
+Treat this as an implementation consideration when deploying the service
+publicly.
