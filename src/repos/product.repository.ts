@@ -25,7 +25,7 @@ class ProductRepository {
       __v: 0,
       createdAt: 0,
       updatedAt: 0,
-    });
+    }).lean();
   }
 
   /**
@@ -35,15 +35,25 @@ class ProductRepository {
    * @param {string} [sort="-createdAt"] - Mongoose sort string, e.g. "-productPrice".
    * @returns {Promise<Array>} List of product documents.
    */
-  findAll(filter = {}, sort = "-createdAt"): Promise<IProduct[]> {
-    return Product.find(filter)
+  findAll(
+    filter = {},
+    sort = "-createdAt",
+    skip = 0,
+    limit?: number,
+  ): Promise<IProduct[]> {
+    const query = Product.find(filter)
       .select({
         _id: 0,
         __v: 0,
         createdAt: 0,
         updatedAt: 0,
       })
-      .sort(sort);
+      .sort(sort)
+      .skip(skip);
+
+    if (limit !== undefined) query.limit(limit);
+
+    return query.lean();
   }
 
   /**

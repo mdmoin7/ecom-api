@@ -5,11 +5,22 @@ import {
 } from "../validations/product.validation.js";
 import { generateProducts } from "../utils/generateProducts.js";
 import { AppError } from "../utils/errors.js";
+import TtlCache from "../utils/ttl-cache.js";
 
 const MAX_SEED_COUNT = 5000;
 const DEFAULT_SEED_COUNT = 500;
 const DEFAULT_PAGE_LIMIT = 20;
 const MAX_PAGE_LIMIT = 100;
+const configuredCacheTtl = Number(process.env.CACHE_TTL_SECONDS ?? 60);
+const configuredCacheSize = Number(process.env.CACHE_MAX_ENTRIES ?? 500);
+const CACHE_TTL_MS =
+  Number.isFinite(configuredCacheTtl) && configuredCacheTtl >= 0
+    ? configuredCacheTtl * 1000
+    : 60_000;
+const CACHE_MAX_ENTRIES =
+  Number.isFinite(configuredCacheSize) && configuredCacheSize >= 0
+    ? Math.floor(configuredCacheSize)
+    : 500;
 // Fields a client is allowed to sort by. Prevents sorting on arbitrary/
 // unindexed or internal fields via an unvalidated query string.
 const SORTABLE_FIELDS = new Set([
@@ -106,6 +117,10 @@ function buildPagination(query: any = {}) {
  */
 class ProductService {
   productRepository = null;
+  private readonly productCache = new TtlCache<any>(
+    CACHE_TTL_MS,
+    CACHE_MAX_ENTRIES,
+  );
 
   /**
    * Injects ProductRepository dependency.
@@ -127,7 +142,9 @@ class ProductService {
     // Assign a new v4 UUID to the product
     product.productId = uuidv4();
 
-    return this.productRepository.create(product);
+    const created = await this.productRepository.create(product);
+    this.clearProductCache();
+    return created;
   }
 
   /**
@@ -135,8 +152,10 @@ class ProductService {
    * @param {string} id - The custom productId.
    * @returns {Promise<Object|null>} The deleted document or null.
    */
-  deleteProduct(id) {
-    return this.productRepository.delete(id);
+  async deleteProduct(id) {
+    const deleted = await this.productRepository.delete(id);
+    if (deleted) this.clearProductCache();
+    return deleted;
   }
 
   /**
@@ -169,7 +188,9 @@ class ProductService {
       }
     }
 
-    return this.productRepository.update(id, product);
+    const updated = await this.productRepository.update(id, product);
+    if (updated) this.clearProductCache();
+    return updated;
   }
 
   /**
@@ -177,8 +198,14 @@ class ProductService {
    * @param {string} id - The custom productId.
    * @returns {Promise<Object|null>} The product document or null.
    */
-  findProduct(id) {
-    return this.productRepository.findById(id);
+  async findProduct(id) {
+    const key = `product:${id}`;
+    const cached = this.productCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const product = await this.productRepository.findById(id);
+    if (product) this.productCache.set(key, product);
+    return product;
   }
 
   /**
@@ -191,13 +218,16 @@ class ProductService {
     const filter = buildFilter(query);
     const sort = buildSort(query.sort);
     const { page, limit, skip } = buildPagination(query);
+    const key = `products:${JSON.stringify({ filter, sort, page, limit })}`;
+    const cached = this.productCache.get(key);
+    if (cached !== undefined) return cached;
 
     const [data, total] = await Promise.all([
       this.productRepository.findAll(filter, sort, skip, limit),
       this.productRepository.count(filter),
     ]);
 
-    return {
+    const result = {
       data,
       pagination: {
         page,
@@ -206,6 +236,8 @@ class ProductService {
         totalPages: Math.ceil(total / limit) || 0,
       },
     };
+    this.productCache.set(key, result);
+    return result;
   }
 
   /**
@@ -215,9 +247,13 @@ class ProductService {
    * @param {Object} file - The file object uploaded via multer.
    * @returns {Promise<Object|null>} The updated document or null.
    */
-  uploadProductImage(id, file) {
+  async uploadProductImage(id, file) {
     const publicPath = `/uploads/${file.filename}`;
-    return this.productRepository.update(id, { productImage: publicPath });
+    const updated = await this.productRepository.update(id, {
+      productImage: publicPath,
+    });
+    if (updated) this.clearProductCache();
+    return updated;
   }
 
   /**
@@ -235,7 +271,12 @@ class ProductService {
         : DEFAULT_SEED_COUNT;
 
     await this.productRepository.insertMany(generateProducts(safeCount));
+    this.clearProductCache();
     return `Products seeded successfully (${safeCount})`;
+  }
+
+  private clearProductCache() {
+    this.productCache.clear();
   }
 }
 

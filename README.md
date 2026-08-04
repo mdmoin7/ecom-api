@@ -9,6 +9,7 @@ A robust, production-ready Node.js REST API for managing product catalogs. Built
 - [Features](#features)
 - [Architecture & Directory Structure](#architecture--directory-structure)
 - [Dependencies](#dependencies)
+- [Caching](#caching)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -29,6 +30,7 @@ A robust, production-ready Node.js REST API for managing product catalogs. Built
 - **Request Validation**: Incoming body validation powered by Joi schemas.
 - **File Uploads**: Handles image uploads via customized Multer middleware.
 - **Data Seeding**: Built-in mock data generation using Faker.js.
+- **Product Read Cache**: Bounded, process-local TTL caching for product detail and list requests.
 - **Centralized Error Handling**: Express boundary middleware that filters and sanitizes system errors to prevent sensitive server data disclosure.
 - **XSS Prevention**: Middleware that recursively sanitizes and HTML-escapes all string values in incoming payloads (`req.body`, `req.query`, and `req.params`).
 - **Security Primitives**: Preconfigured rate limiting (Express Rate Limit) and secure headers (Helmet).
@@ -53,6 +55,7 @@ api-app/
 │   ├── services/           # Business logic, Joi validations orchestration, and seeding
 │   ├── utils/              # General utility classes, middlewares, and functions
 │   │   ├── errors.js       # AppError class and centralized errorHandler middleware
+│   │   ├── ttl-cache.ts    # Bounded in-memory TTL/LRU cache implementation
 │   │   ├── xss-clean.js    # XSS Clean recursively-traversing sanitization middleware
 │   │   └── generateProducts.js # Mock generator utilities
 │   ├── index.js            # Main application entry point
@@ -106,7 +109,12 @@ Create a `.env` file in the root of the project:
 ```env
 PORT=3000
 DB_STRING=your_mongodb_connection_string
+CACHE_TTL_SECONDS=60
+CACHE_MAX_ENTRIES=500
 ```
+
+`CACHE_TTL_SECONDS` and `CACHE_MAX_ENTRIES` are optional; their defaults are
+`60` and `500` respectively.
 
 ### Running the Application
 
@@ -116,17 +124,29 @@ DB_STRING=your_mongodb_connection_string
 npm start
 ```
 
-#### Start in Development Mode (with hot-reload via nodemon):
+#### Start in Development Mode (with hot-reload):
 
 ```bash
 npm run dev
 ```
 
-#### Start with Remote Debugging Enabled:
+## Caching
 
-```bash
-npm run debug
-```
+The service caches successful public product reads in the application process:
+
+- `GET /api/v1/products/:id` is cached by product ID.
+- `GET /api/v1/products` is cached separately for each effective filter, sort,
+  page, and limit combination.
+- Entries expire after `CACHE_TTL_SECONDS` (60 seconds by default). Set it to
+  `0` to disable caching.
+- The cache retains up to `CACHE_MAX_ENTRIES` entries (500 by default) and
+  evicts the least recently used entry when full.
+- Creating, updating, deleting, uploading an image for, or reseeding products
+  clears all product cache entries immediately in that process.
+
+This cache is intentionally process-local. In a multi-instance deployment,
+replace it with a shared cache such as Redis when invalidation must be
+consistent across instances.
 
 ---
 
@@ -139,63 +159,69 @@ All request bodies must be sent as `application/json`, except for the `/upload` 
 #### 1. Retrieve All Products
 
 - **HTTP Method**: `GET`
-- **Path**: `/api/v1/product`
+- **Path**: `/api/v1/products`
 - **Success Response**: `200 OK`
-- **Empty Response**: `204 No Content` (if no products are found)
+- **Empty Response**: `200 OK` with an empty `data` array
+- **Query Parameters**: `category`, `status`, `inStock`, `minPrice`,
+  `maxPrice`, `tags`, `search`, `sort`, `page`, and `limit`.
 
 #### 2. Retrieve Product By ID
 
 - **HTTP Method**: `GET`
-- **Path**: `/api/v1/product/:id`
+- **Path**: `/api/v1/products/:id`
 - **Success Response**: `200 OK`
-- **Not Found Response**: `204 No Content`
+- **Not Found Response**: `404 Not Found`
 
 #### 3. Create Product
 
 - **HTTP Method**: `POST`
-- **Path**: `/api/v1/product`
+- **Path**: `/api/v1/products`
 - **Request Body Schema**:
   ```json
   {
-    "productName": "Example Product Name", // String (Min length: 3, Required)
-    "productDescription": "Short Description", // String (Optional)
-    "productPrice": 150.0, // Number (Min: 100, Required)
-    "productRating": 4.5 // Number (0 to 5, Optional)
+    "productName": "Example Product Name",
+    "productDescription": "Short Description",
+    "productPrice": 150.0,
+    "productRating": 4.5
   }
   ```
 - **Success Response**: `201 Created`
-- **Error Response**: `400 Bad Request` (due to Joi validation errors or XSS entities)
+- **Authentication**: Admin bearer token required
+- **Error Response**: `400 Bad Request` (validation error)
 
 #### 4. Update Product
 
-- **HTTP Method**: `PUT`
-- **Path**: `/api/v1/product/:id`
-- **Request Body Schema**: Same as Create Product (fields validated via Joi)
+- **HTTP Method**: `PATCH`
+- **Path**: `/api/v1/products/:id`
+- **Request Body Schema**: Partial product fields, validated via Joi
 - **Success Response**: `200 OK`
-- **Error Response**: `400 Bad Request` / `204 No Content`
+- **Authentication**: Admin bearer token required
+- **Error Response**: `400 Bad Request` / `404 Not Found`
 
 #### 5. Delete Product
 
 - **HTTP Method**: `DELETE`
-- **Path**: `/api/v1/product/:id`
+- **Path**: `/api/v1/products/:id`
 - **Success Response**: `200 OK`
-- **Not Found Response**: `204 No Content`
+- **Authentication**: Admin bearer token required
+- **Not Found Response**: `404 Not Found`
 
 #### 6. Upload Product Image
 
 - **HTTP Method**: `POST`
-- **Path**: `/api/v1/product/upload`
+- **Path**: `/api/v1/products/upload`
 - **Request Format**: `multipart/form-data`
 - **Request Payload**:
   - `id`: The custom `productId` string (sent as a form field)
   - `image`: The image file (sent as a file field)
 - **Success Response**: `200 OK`
+- **Authentication**: Admin bearer token required
 - **Error Response**: `400 Bad Request` (if file/id is missing or format is invalid)
 
 #### 7. Seed Database
 
 - **HTTP Method**: `POST`
-- **Path**: `/api/v1/product/seed`
+- **Path**: `/api/v1/products/seed`
 - **Query Params**:
   - `count`: Number of mock products to generate (optional, defaults to 500)
 - **Success Response**: `200 OK`
