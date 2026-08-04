@@ -9,5 +9,7 @@ declare namespace NodeJS {
     CACHE_TTL_SECONDS?: string;
     /** Maximum number of product cache entries retained per process. */
     CACHE_MAX_ENTRIES?: string;
+    /** Winston minimum log level (default: info). */
+    LOG_LEVEL?: string;
   }
 }

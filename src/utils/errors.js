@@ -1,4 +1,4 @@
-import chalk from "chalk";
+import logger from "./logger.js";
 
 /**
  * Custom Error class for operational errors.
@@ -18,10 +18,13 @@ class AppError extends Error {
  * Strips out system details and logs errors safely.
  */
 const errorHandler = (err, req, res, next) => {
-  // Log the complete error stack trace on the server for developers
-  console.error(chalk.red("=== ERROR OCCURRED ==="));
-  console.error(err);
-  console.error(chalk.red("======================"));
+  // Keep complete diagnostics on the server; the response below remains safe.
+  logger.error("Unhandled request error", {
+    error: err.stack || err.message,
+    errorName: err.name,
+    method: req.method,
+    path: req.originalUrl,
+  });
 
   // 1. Handle Joi Validation Errors (isJoi: true or name: 'ValidationError')
   if (err.isJoi || err.name === "ValidationError") {

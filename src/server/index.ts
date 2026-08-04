@@ -1,5 +1,4 @@
 import express from "express";
-import morgan from "morgan";
 import helmet from "helmet";
 import path from "path";
 import productRoutes from "../routes/product.routes.js";
@@ -10,6 +9,8 @@ import { errorHandler } from "../utils/errors.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "../docs/swagger.js";
 import cors from "cors";
+import { requestLogger } from "../middlewares/request-logger.middleware.js";
+import morgan from "morgan";
 
 // Configure Rate Limiting middleware to prevent abuse and brute force attacks
 const limiter = rateLimit({
@@ -28,8 +29,9 @@ const currentDir = import.meta.dirname;
 app.use(cors());
 // Apply security headers using Helmet
 app.use(helmet());
-// Apply HTTP request logging using Morgan in development format
+// Log completed requests through Winston to the console and log files.
 app.use(morgan("dev"));
+app.use(requestLogger);
 
 // Apply the configured rate limiter middleware
 app.use(limiter);

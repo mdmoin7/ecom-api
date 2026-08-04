@@ -81,7 +81,7 @@ api-app/
 
 - **[helmet](https://helmetjs.github.io/)**: Secure Express apps by setting various HTTP headers.
 - **[express-rate-limit](https://github.com/express-rate-limit/express-rate-limit)**: Basic rate-limiting middleware.
-- **[morgan](https://github.com/expressjs/morgan)**: HTTP request logger middleware.
+- **[winston](https://github.com/winstonjs/winston)**: Structured request and error logging to the console and local log files.
 - **[chalk](https://github.com/chalk/chalk)**: Terminal string styling utility.
 - **[dotenv](https://github.com/motdotla/dotenv)**: Loads environment variables from `.env`.
 
@@ -111,10 +111,14 @@ PORT=3000
 DB_STRING=your_mongodb_connection_string
 CACHE_TTL_SECONDS=60
 CACHE_MAX_ENTRIES=500
+LOG_LEVEL=info
 ```
 
 `CACHE_TTL_SECONDS` and `CACHE_MAX_ENTRIES` are optional; their defaults are
 `60` and `500` respectively.
+
+Request logs are written as JSON to `logs/combined.log`; errors are also
+written to `logs/error.log`. The `logs/` directory is ignored by Git.
 
 ### Running the Application
 
