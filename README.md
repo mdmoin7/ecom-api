@@ -1,282 +1,292 @@
-# Product Management API App (`ecom-api-app`)
+# E-commerce Product API
 
-A robust, production-ready Node.js REST API for managing product catalogs. Built with Express, MongoDB/Mongoose, and structured using clean architectural patterns (Controller-Service-Repository).
+An Express, MongoDB, and Mongoose REST API for a product catalog. The codebase
+uses controller, service, and repository layers, validates input with Joi, and
+provides JWT-protected product administration routes.
 
----
+## Contents
 
-## Table of Contents
-
+- [Requirements and setup](#requirements-and-setup)
 - [Features](#features)
-- [Architecture & Directory Structure](#architecture--directory-structure)
-- [Dependencies](#dependencies)
+- [Architecture and structure](#architecture-and-structure)
+- [Configuration](#configuration)
+- [Running the API](#running-the-api)
+- [API documentation](#api-documentation)
+- [Authentication](#authentication)
+- [Product endpoints](#product-endpoints)
+- [User endpoints](#user-endpoints)
 - [Caching](#caching)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Environment Configuration](#environment-configuration)
-  - [Running the Application](#running-the-application)
-- [API Documentation](#api-documentation)
-  - [Product Endpoints](#product-endpoints)
-- [Security, Error Handling & Sanitization](#security-error-handling--sanitization)
-- [File Uploads](#file-uploads)
-- [Mock Seeding](#mock-seeding)
+- [Logging](#logging)
+- [Uploads](#uploads)
+- [Security and error responses](#security-and-error-responses)
 
----
+## Requirements and setup
 
-## Features
+- Node.js 20 or later
+- A MongoDB instance or MongoDB Atlas connection string
 
-- **Clean Architecture**: Controller-Service-Repository separation of concerns.
-- **Database Persistence**: Integrated with MongoDB Atlas using Mongoose.
-- **Request Validation**: Incoming body validation powered by Joi schemas.
-- **File Uploads**: Handles image uploads via customized Multer middleware.
-- **Data Seeding**: Built-in mock data generation using Faker.js.
-- **Product Read Cache**: Bounded, process-local TTL caching for product detail and list requests.
-- **Centralized Error Handling**: Express boundary middleware that filters and sanitizes system errors to prevent sensitive server data disclosure.
-- **XSS Prevention**: Middleware that recursively sanitizes and HTML-escapes all string values in incoming payloads (`req.body`, `req.query`, and `req.params`).
-- **Security Primitives**: Preconfigured rate limiting (Express Rate Limit) and secure headers (Helmet).
-- **ES Modules**: Fully configured modern JavaScript syntax (`import`/`export`).
-
----
-
-## Architecture & Directory Structure
-
-The project separates concerns using the Controller-Service-Repository pattern:
-
-```text
-api-app/
-├── src/
-│   ├── config/             # Configuration modules (e.g., file-upload configuration)
-│   ├── controller/         # API HTTP request handlers
-│   ├── db/                 # Database initialization and connection helpers
-│   ├── models/             # Mongoose schemas and models
-│   ├── repos/              # Database queries and projections (Data Access Layer)
-│   ├── routes/             # Express routes configuration
-│   ├── server/             # Express App setup, middlewares, and global configurations
-│   ├── services/           # Business logic, Joi validations orchestration, and seeding
-│   ├── utils/              # General utility classes, middlewares, and functions
-│   │   ├── errors.js       # AppError class and centralized errorHandler middleware
-│   │   ├── ttl-cache.ts    # Bounded in-memory TTL/LRU cache implementation
-│   │   ├── xss-clean.js    # XSS Clean recursively-traversing sanitization middleware
-│   │   └── generateProducts.js # Mock generator utilities
-│   ├── index.js            # Main application entry point
-├── uploads/                # Directory where uploaded images are saved
-├── .env                    # Environment variables file
-├── package.json            # Project manifest and scripts configuration
-└── README.md               # Project documentation
-```
-
----
-
-## Dependencies
-
-### Core
-
-- **[express](https://expressjs.com/)**: Fast, unopinionated minimalist web framework.
-- **[mongoose](https://mongoosejs.com/)**: MongoDB object modeling tool.
-- **[joi](https://joi.dev/)**: Schema description language and data validator.
-- **[multer](https://github.com/expressjs/multer)**: Middleware for handling `multipart/form-data` (file uploads).
-- **[uuid](https://github.com/uuidjs/uuid)**: Unique identifier generator for product IDs.
-
-### Security & Logging
-
-- **[helmet](https://helmetjs.github.io/)**: Secure Express apps by setting various HTTP headers.
-- **[express-rate-limit](https://github.com/express-rate-limit/express-rate-limit)**: Basic rate-limiting middleware.
-- **[winston](https://github.com/winstonjs/winston)**: Structured request and error logging to the console and local log files.
-- **[chalk](https://github.com/chalk/chalk)**: Terminal string styling utility.
-- **[dotenv](https://github.com/motdotla/dotenv)**: Loads environment variables from `.env`.
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v20.11.0+ recommended)
-- [MongoDB](https://www.mongodb.com/) (Local server or MongoDB Atlas Cloud instance)
-
-### Installation
-
-Clone the repository and install all dependencies:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-### Environment Configuration
+## Features
 
-Create a `.env` file in the root of the project:
+- Product catalog CRUD with filtering, sorting, and paginated list responses.
+- User registration and JWT login.
+- Admin-only product creation, updates, deletion, and image uploads.
+- Joi validation for product and user input.
+- MongoDB/Mongoose persistence using controller, service, and repository layers.
+- Swagger UI and a raw OpenAPI document.
+- Bounded in-process caching for public product reads.
+- Winston request and error logging to files and the console.
+- Multer-based image uploads, Helmet headers, CORS, and global rate limiting.
+
+## Architecture and structure
+
+The API follows a controller-service-repository flow:
+
+```text
+HTTP request
+  → middleware (security, logging, authentication)
+  → route
+  → controller (HTTP request/response handling)
+  → service (validation, business rules, caching)
+  → repository (Mongoose data access)
+  → MongoDB
+```
+
+```text
+src/
+├── config/             # Multer upload configuration
+├── controller/         # Product and user HTTP handlers
+├── db/                 # MongoDB connection setup
+├── docs/               # OpenAPI/Swagger configuration
+├── middlewares/        # Authentication, authorization, request logging
+├── models/             # Mongoose schemas
+├── repos/              # Database query layer
+├── routes/             # Express route definitions and Swagger annotations
+├── server/             # Express app and global middleware setup
+├── services/           # Business rules, validation orchestration, caching
+├── types/              # TypeScript declaration extensions
+├── utils/              # Errors, Winston logger, TTL cache, seed generator
+└── index.ts            # Application startup
+uploads/                # Uploaded image files (runtime)
+logs/                   # Winston log files (runtime)
+```
+
+## Configuration
+
+Create a `.env` file in the project root:
 
 ```env
 PORT=3000
-DB_STRING=your_mongodb_connection_string
+DB_STRING=mongodb://127.0.0.1:27017/ecom-api
+JWT_SECRET=replace-with-a-long-random-secret
+
+# Optional settings
 CACHE_TTL_SECONDS=60
 CACHE_MAX_ENTRIES=500
 LOG_LEVEL=info
 ```
 
-`CACHE_TTL_SECONDS` and `CACHE_MAX_ENTRIES` are optional; their defaults are
-`60` and `500` respectively.
+`DB_STRING` is required at startup. `JWT_SECRET` is required for registration,
+login, and protected routes. Cache settings default to 60 seconds and 500
+entries when omitted. Set `CACHE_TTL_SECONDS=0` to disable the cache.
 
-Request logs are written as JSON to `logs/combined.log`; errors are also
-written to `logs/error.log`. The `logs/` directory is ignored by Git.
-
-### Running the Application
-
-#### Start in Production Mode:
+## Running the API
 
 ```bash
+# Development, with reload
+npm run dev
+
+# Compile TypeScript
+npm run build
+
+# Run the compiled application
 npm start
 ```
 
-#### Start in Development Mode (with hot-reload):
+The server listens on `http://localhost:3000` by default. All API endpoints
+are prefixed with `/api/v1`.
 
-```bash
-npm run dev
+## API documentation
+
+Interactive Swagger UI is available at:
+
+```text
+http://localhost:3000/api-docs
 ```
+
+The raw OpenAPI document is available at:
+
+```text
+http://localhost:3000/api-docs.json
+```
+
+Swagger is configured with `/api/v1` as its server base, so using **Execute**
+in the UI calls the same API paths listed below. Protected operations require a
+JWT entered through Swagger UI's **Authorize** button.
+
+## Authentication
+
+Register, then log in to receive a JWT. Send that token to protected routes:
+
+```http
+Authorization: Bearer <token>
+```
+
+Tokens expire after 15 minutes. Product creation, update, deletion, and image
+upload require an authenticated user with the `admin` role.
+
+> The registration endpoint currently accepts `role` in the request body and
+> defaults it to `user`. Restricting who may register an `admin` is a deployment
+> and application-policy concern that should be addressed before exposing
+> registration publicly.
+
+## Product endpoints
+
+All responses are JSON. Successful list responses include `data` and
+`pagination`; other successful product responses include `data`.
+
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/products` | Public | List products with filtering, sorting, and pagination. |
+| `GET` | `/api/v1/products/:id` | Public | Get one product by its `productId`. |
+| `POST` | `/api/v1/products` | Admin | Create a product. |
+| `PATCH` | `/api/v1/products/:id` | Admin | Partially update a product. |
+| `DELETE` | `/api/v1/products/:id` | Admin | Delete a product. |
+| `POST` | `/api/v1/products/upload` | Admin | Upload and attach a product image. |
+| `POST` | `/api/v1/products/seed?count=500` | Admin | Replace the collection with generated products. |
+
+### List products
+
+`GET /api/v1/products` accepts these optional query parameters:
+
+| Parameter | Meaning |
+| --- | --- |
+| `category` | Exact `productCategory` match. |
+| `status` | Exact product status. |
+| `inStock` | `true` returns stock greater than zero; `false` returns zero stock. |
+| `minPrice`, `maxPrice` | Inclusive `productPrice` range. |
+| `tags` | Comma-separated tags; matches products with any supplied tag. |
+| `search` | MongoDB text-search term. |
+| `sort` | Comma-separated fields; prefix a field with `-` for descending order. |
+| `page` | One-indexed page number; defaults to `1`. |
+| `limit` | Page size; defaults to `20`, maximum `100`. |
+
+Sortable fields are `productName`, `productPrice`, `productSalePrice`,
+`productRating`, `productStock`, and `createdAt`. The default sort is newest
+first.
+
+Example:
+
+```text
+GET /api/v1/products?category=electronics&inStock=true&sort=-productRating&page=1&limit=20
+```
+
+### Create or update a product
+
+Creating a product requires `productName`, `productPrice`, `productSalePrice`,
+and `productCategory`. A sale price cannot exceed the base price.
+
+```json
+{
+  "productName": "Wireless Headphones",
+  "productDescription": "Noise-cancelling over-ear headphones",
+  "productPrice": 199.99,
+  "productSalePrice": 149.99,
+  "productCategory": "electronics",
+  "productStock": 25,
+  "productRating": 4.6,
+  "productStatus": "active",
+  "tags": ["audio", "wireless"]
+}
+```
+
+`PATCH /api/v1/products/:id` accepts one or more of those product fields.
+`productStatus` must be `active`, `inactive`, or `discontinued`.
+
+### Upload an image
+
+Send `multipart/form-data` to `POST /api/v1/products/upload` with:
+
+- `id`: the target `productId`
+- `image`: a JPEG, JPG, PNG, or GIF file no larger than 5 MB
+
+Files are stored in `uploads/` and served at `/images/<filename>`. The stored
+product image value uses the public `/uploads/<filename>` path.
+
+### Seed products
+
+`POST /api/v1/products/seed` replaces all products with Faker-generated data.
+`count` defaults to 500 and is capped at 5,000. It requires an admin bearer
+token and is destructive.
+
+## User endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/user/register` | Create a user account. |
+| `POST` | `/api/v1/user/login` | Authenticate and return a JWT. |
+
+Register request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "at-least-8-characters",
+  "confirmPassword": "at-least-8-characters",
+  "role": "user"
+}
+```
+
+Login request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "at-least-8-characters"
+}
+```
+
+Successful login returns a `token` field. Passwords are hashed before storage
+and omitted from the registration response.
 
 ## Caching
 
-The service caches successful public product reads in the application process:
+Successful public product reads are cached in the application process:
 
-- `GET /api/v1/products/:id` is cached by product ID.
-- `GET /api/v1/products` is cached separately for each effective filter, sort,
-  page, and limit combination.
-- Entries expire after `CACHE_TTL_SECONDS` (60 seconds by default). Set it to
-  `0` to disable caching.
-- The cache retains up to `CACHE_MAX_ENTRIES` entries (500 by default) and
-  evicts the least recently used entry when full.
+- Product detail responses are keyed by `productId`.
+- List responses are keyed by the effective filter, sort, page, and limit.
+- Entries expire after `CACHE_TTL_SECONDS` and the cache uses least-recently
+  used eviction after `CACHE_MAX_ENTRIES` entries.
 - Creating, updating, deleting, uploading an image for, or reseeding products
-  clears all product cache entries immediately in that process.
+  clears product cache entries in that process.
 
-This cache is intentionally process-local. In a multi-instance deployment,
-replace it with a shared cache such as Redis when invalidation must be
-consistent across instances.
+The cache is process-local. Use a shared cache such as Redis when running
+multiple application instances and immediate cross-instance invalidation is
+required.
 
----
+## Logging
 
-## API Documentation
+Winston writes structured JSON request logs to `logs/combined.log` and error
+logs to `logs/error.log`; both are also emitted to the console. `LOG_LEVEL`
+sets Winston's minimum level and defaults to `info`. The `logs/` directory is
+ignored by Git. Morgan's development request stream is also currently enabled.
 
-All request bodies must be sent as `application/json`, except for the `/upload` endpoint which requires `multipart/form-data`.
+## Security and error responses
 
-### Product Endpoints
+- Helmet sets security-related HTTP headers.
+- CORS is enabled with the default middleware configuration.
+- A global rate limit permits 100 requests per IP every 15 minutes.
+- Joi validation failures return `400` responses.
+- Authentication failures return `401`; authenticated users without the admin
+  role receive `403`.
+- Missing products return `404`.
+- Unexpected errors are logged and returned as a generic `500` response.
 
-#### 1. Retrieve All Products
-
-- **HTTP Method**: `GET`
-- **Path**: `/api/v1/products`
-- **Success Response**: `200 OK`
-- **Empty Response**: `200 OK` with an empty `data` array
-- **Query Parameters**: `category`, `status`, `inStock`, `minPrice`,
-  `maxPrice`, `tags`, `search`, `sort`, `page`, and `limit`.
-
-#### 2. Retrieve Product By ID
-
-- **HTTP Method**: `GET`
-- **Path**: `/api/v1/products/:id`
-- **Success Response**: `200 OK`
-- **Not Found Response**: `404 Not Found`
-
-#### 3. Create Product
-
-- **HTTP Method**: `POST`
-- **Path**: `/api/v1/products`
-- **Request Body Schema**:
-  ```json
-  {
-    "productName": "Example Product Name",
-    "productDescription": "Short Description",
-    "productPrice": 150.0,
-    "productRating": 4.5
-  }
-  ```
-- **Success Response**: `201 Created`
-- **Authentication**: Admin bearer token required
-- **Error Response**: `400 Bad Request` (validation error)
-
-#### 4. Update Product
-
-- **HTTP Method**: `PATCH`
-- **Path**: `/api/v1/products/:id`
-- **Request Body Schema**: Partial product fields, validated via Joi
-- **Success Response**: `200 OK`
-- **Authentication**: Admin bearer token required
-- **Error Response**: `400 Bad Request` / `404 Not Found`
-
-#### 5. Delete Product
-
-- **HTTP Method**: `DELETE`
-- **Path**: `/api/v1/products/:id`
-- **Success Response**: `200 OK`
-- **Authentication**: Admin bearer token required
-- **Not Found Response**: `404 Not Found`
-
-#### 6. Upload Product Image
-
-- **HTTP Method**: `POST`
-- **Path**: `/api/v1/products/upload`
-- **Request Format**: `multipart/form-data`
-- **Request Payload**:
-  - `id`: The custom `productId` string (sent as a form field)
-  - `image`: The image file (sent as a file field)
-- **Success Response**: `200 OK`
-- **Authentication**: Admin bearer token required
-- **Error Response**: `400 Bad Request` (if file/id is missing or format is invalid)
-
-#### 7. Seed Database
-
-- **HTTP Method**: `POST`
-- **Path**: `/api/v1/products/seed`
-- **Query Params**:
-  - `count`: Number of mock products to generate (optional, defaults to 500)
-- **Success Response**: `200 OK`
-
----
-
-## Security, Error Handling & Sanitization
-
-### 1. Centralized Error Sanitization
-
-To prevent **Information Disclosure** (e.g. database schema details or raw stacks), a custom centralized error handling middleware intercepts all errors:
-
-- **Joi Validation Errors**: Formatted and returned cleanly to the client as a `400 Bad Request` validation response.
-- **Operational Errors (`AppError`)**: Custom errors thrown intentionally inside the application route workflows return their corresponding status code and safe messages.
-- **System Errors**: Unexpected exceptions (database query crashes, syntax issues) are logged securely in detail to the console, and masked with a generic `500 Internal Server Error` (`"An unexpected error occurred on the server."`) response to the client.
-
-### 2. XSS Input Sanitization
-
-A recursive input sanitization middleware runs on every request:
-
-- Automatically filters `req.body`, `req.query`, and `req.params`.
-- Replaces special HTML characters (`&`, `<`, `>`, `"`, `'`, `/`) with safe entity codes.
-- Ensures script injection attempts (e.g. `<script>alert(1)</script>`) are stored harmlessly as text (`&lt;script&gt;alert(1)&lt;&#x2F;script&gt;`).
-
-### 3. NoSQL Injection Sanitization
-
-- Configured the `express-mongo-sanitize` middleware to analyze query and request body payloads.
-- Automatically strips any keys beginning with a `$` or containing a `.` character to prevent malicious MongoDB operator injection (e.g., bypassing query filters via `{ "$gt": "" }`).
-
-### 4. General Security Primitives
-
-- **Helmet**: Secures the application headers to mitigate common web vulnerabilities.
-- **Rate Limiter**: Limits IP addresses to **100 requests per 15 minutes** to prevent brute-force and DDoS attacks.
-- Static file serving on `/images` is configured safely.
-
----
-
-## File Uploads
-
-- Supported formats: **JPEG, JPG, PNG, GIF**.
-- Maximum file size limit: **5 MB**.
-- Files are saved locally inside the root `uploads/` directory with a unique timestamp suffix to avoid filename collisions.
-- Uploaded files are served publicly at `http://localhost:<PORT>/images/<filename>`.
-
----
-
-## Mock Seeding
-
-Seeding utilizes `@faker-js/faker` to clear the current collection and construct mock inventory. Products generated during seeding have:
-
-- Calculated Selling/Sale prices (with a 40% probability of a randomized 5%-50% discount).
-- Inventory stock quantities between 0 and 500.
-- Rating indices from 1.0 to 5.0.
-- Image assets resolved using standard `Picsum` placeholders.
+The API currently does not register a custom XSS-cleaning or MongoDB-query
+sanitization middleware. Treat this as an implementation consideration when
+deploying the service publicly.

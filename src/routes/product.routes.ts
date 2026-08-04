@@ -109,7 +109,7 @@ Router.post(
  *       403:
  *         description: Insufficient permissions
  */
-Router.post("/seed", (req, res, next) =>
+Router.post("/seed", authenticate, authorize("admin"), (req, res, next) =>
   controller.seedProducts(req, res, next),
 );
 

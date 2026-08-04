@@ -52,9 +52,12 @@ app.use(
 app.use(BASE_URL + "/products", productRoutes);
 app.use(BASE_URL + "/user", userRoutes);
 
-// Register centralized error handling middleware (must be registered last)
-app.use(errorHandler);
 // API documentation using swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Make the rendered OpenAPI document available for clients and debugging.
+app.get("/api-docs.json", (_req, res) => res.json(swaggerSpec));
+
+// Register centralized error handling middleware after all routes.
+app.use(errorHandler);
 
 export default app;

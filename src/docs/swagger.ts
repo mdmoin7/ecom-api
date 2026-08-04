@@ -8,7 +8,22 @@ const options = {
       version: "1.0.0",
       description: "Product management endpoints",
     },
+    // Route annotations are relative to this API prefix. Without this server
+    // entry Swagger UI executes /products instead of /api/v1/products.
+    servers: [
+      {
+        url: "/api/v1",
+        description: "Current API server",
+      },
+    ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
       schemas: {
         Product: {
           type: "object",
