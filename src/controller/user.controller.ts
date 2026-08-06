@@ -36,7 +36,11 @@ class UserController {
         token,
       });
     } catch (err) {
-      next(err);
+      return res.status(400).json({
+        success: false,
+        message: "Login failed",
+        error: err.message,
+      });
     }
   }
 }
