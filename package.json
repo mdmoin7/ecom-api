@@ -4,7 +4,8 @@
   "description": "",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "docs:generate": "tsx src/docs/generate-swagger.ts",
+    "build": "npm run docs:generate && tsc",
     "start": "node dist/index.js"
   },
   "keywords": [],
