@@ -12,7 +12,6 @@ import cors from "cors";
 import { requestLogger } from "../middlewares/request-logger.middleware.js";
 import { xssSanitizer } from "../middlewares/xss.middleware.js";
 
-// Configure Rate Limiting middleware to prevent abuse and brute force attacks
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
@@ -23,8 +22,6 @@ const limiter = rateLimit({
 
 const app = express();
 const BASE_URL = "/api/v1";
-
-// Retrieve directory path of the current module file
 const currentDir = import.meta.dirname;
 
 app.use(cors());
@@ -35,25 +32,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(xssSanitizer);
 
-// Serve the 'uploads' directory statically at '/images' endpoint
 app.use(
   "/images",
   express.static(path.join(currentDir, "..", "..", "uploads")),
 );
 
-// Liveness and readiness probes for load balancers and orchestrators.
 app.use(healthRoutes);
-
-// Register product and user routes.
 app.use(BASE_URL + "/products", productRoutes);
 app.use(BASE_URL + "/user", userRoutes);
 
-// OpenAPI document for Swagger UI and external API tooling.
 app.get("/api-docs.json", (_req, res) => res.json(swaggerSpec));
 
-// Swagger UI is rendered from CDN assets rather than swagger-ui-express's
-// package-local static files. This avoids serverless bundling/path issues on
-// Vercel while keeping the OpenAPI specification served by this API.
+// Swagger UI is served as an HTML shell. Use jsDelivr for the static assets;
+// unlike the previous unpkg URLs, jsDelivr serves the assets with the expected
+// JavaScript/CSS MIME types, avoiding browser ORB blocking.
 app.get("/api-docs", (_req, res) => {
   res.removeHeader("Content-Security-Policy");
   res.type("html").send(`<!DOCTYPE html>
@@ -62,12 +54,12 @@ app.get("/api-docs", (_req, res) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ecom API Documentation</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.0.1/swagger-ui.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.29.0/swagger-ui.css" />
 </head>
 <body>
   <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5.0.1/swagger-ui-bundle.js"></script>
-  <script src="https://unpkg.com/swagger-ui-dist@5.0.1/swagger-ui-standalone-preset.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.29.0/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.29.0/swagger-ui-standalone-preset.js"></script>
   <script>
     window.onload = function () {
       window.ui = SwaggerUIBundle({
