@@ -7,7 +7,6 @@ import healthRoutes from "../routes/health.routes.js";
 
 import { rateLimit } from "express-rate-limit";
 import { errorHandler } from "../utils/errors.js";
-import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "../docs/swagger.js";
 import cors from "cors";
 import { requestLogger } from "../middlewares/request-logger.middleware.js";
@@ -49,28 +48,44 @@ app.use(healthRoutes);
 app.use(BASE_URL + "/products", productRoutes);
 app.use(BASE_URL + "/user", userRoutes);
 
-// Swagger UI needs inline bootstrap code/styles. Helmet's default CSP can
-// prevent Swagger UI from rendering even though the API itself is healthy.
-// Remove only the CSP header for the documentation route; all other routes
-// retain Helmet's normal security headers.
-app.use("/api-docs", (req, res, next) => {
-  res.removeHeader("Content-Security-Policy");
-  next();
-});
-
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: "Ecom API Documentation",
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  }),
-);
-
-// Make the OpenAPI document available for clients and debugging.
+// OpenAPI document for Swagger UI and external API tooling.
 app.get("/api-docs.json", (_req, res) => res.json(swaggerSpec));
+
+// Swagger UI is rendered from CDN assets rather than swagger-ui-express's
+// package-local static files. This avoids serverless bundling/path issues on
+// Vercel while keeping the OpenAPI specification served by this API.
+app.get("/api-docs", (_req, res) => {
+  res.removeHeader("Content-Security-Policy");
+  res.type("html").send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecom API Documentation</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.0.1/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.0.1/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.0.1/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = function () {
+      window.ui = SwaggerUIBundle({
+        url: "/api-docs.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout",
+        persistAuthorization: true
+      });
+    };
+  </script>
+</body>
+</html>`);
+});
 
 app.use(errorHandler);
 
