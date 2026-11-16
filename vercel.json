@@ -1,9 +1,25 @@
 {
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "api": {
+      "root": ".",
+      "framework": "express",
+      "entrypoint": "src/server/index.ts"
+    },
+    "translation": {
+      "root": "services/translation/",
+      "runtime": "container",
+      "entrypoint": "Dockerfile.vercel"
+    }
+  },
   "rewrites": [
     {
+      "source": "/api/v1/translate",
+      "destination": { "service": "translation" }
+    },
+    {
       "source": "/(.*)",
-      "destination": "/api"
+      "destination": { "service": "api" }
     }
   ]
 }

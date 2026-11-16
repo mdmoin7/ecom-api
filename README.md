@@ -309,3 +309,40 @@ ignored by Git. Morgan's development request stream is also currently enabled.
 The API does not currently register MongoDB-query sanitization middleware.
 Treat this as an implementation consideration when deploying the service
 publicly.
+
+
+## Indian-language translation service
+
+The API project also deploys an AI4Bharat IndicTrans2 translation service as a separate Vercel Container service. The existing Express API remains the default service; requests to `POST /api/v1/translate` are routed to the Python inference container.
+
+Supported target language codes: `hi`, `bn`, `te`, `mr`, `ta`, `gu`, `kn`, `ml`, `pa`, `or`, `as`, and `ur`.
+
+Request:
+
+```http
+POST /api/v1/translate
+Authorization: Bearer <TRANSLATION_SERVICE_TOKEN>
+Content-Type: application/json
+
+{
+  "texts": ["Add the spices and cook for five minutes."],
+  "target_language": "hi"
+}
+```
+
+Response:
+
+```json
+{
+  "translations": ["मसाले डालें और पाँच मिनट तक पकाएँ।"],
+  "model": "ai4bharat/indictrans2-en-indic-dist-200M"
+}
+```
+
+`GET /health` reports model readiness. The first cold start downloads the model weights, so the first request can take longer. Configure `TRANSLATION_SERVICE_TOKEN` as an encrypted Vercel environment variable for Production, Preview, and Development. If the model checkpoint requires Hugging Face access approval, configure `HF_TOKEN` on the translation service. The model runs in a separate container so its PyTorch dependencies do not enter the Express API bundle.
+
+### Deployment notes
+
+This repository uses Vercel Services. The project framework must be set to **Services** for the service definitions in `vercel.json` to take effect. The API service is rooted at the repository root; the translation container is rooted at `services/translation/`. Deploy and test on the feature branch before merging to `main`.
+
+Machine translations are not editorial approval. Review culinary terminology, ingredient quantities, temperatures, and food-safety instructions with native speakers.
