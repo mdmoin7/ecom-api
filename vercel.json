@@ -14,12 +14,22 @@
   },
   "rewrites": [
     {
+      "source": "/api/v1/health",
+      "destination": {
+        "service": "translation"
+      }
+    },
+    {
       "source": "/api/v1/translate",
-      "destination": { "service": "translation" }
+      "destination": {
+        "service": "translation"
+      }
     },
     {
       "source": "/(.*)",
-      "destination": { "service": "api" }
+      "destination": {
+        "service": "api"
+      }
     }
   ]
 }
