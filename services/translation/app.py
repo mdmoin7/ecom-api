@@ -53,7 +53,6 @@ async def lifespan(_: FastAPI):
             MODEL_NAME,
             trust_remote_code=True,
             token=HF_TOKEN,
-            low_cpu_mem_usage=True,
         )
         model.to(DEVICE)
         model.eval()
